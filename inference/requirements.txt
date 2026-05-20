@@ -1,0 +1,9 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
+ultralytics==8.3.145
+opencv-python-headless==4.10.0.84
+paho-mqtt==2.1.0
+numpy==1.26.4
+Pillow==10.4.0
+python-dotenv==1.0.1
