@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 
 import aiomqtt
 from sqlalchemy import select
