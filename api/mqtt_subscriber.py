@@ -49,7 +49,10 @@ async def mqtt_listener() -> None:
                 log.info("Subscribed to topic: %s", settings.mqtt_topic)
                 async for message in client.messages:
                     try:
-                        payload = json.loads(message.payload)
+                        raw = message.payload
+                        if not isinstance(raw, (str, bytes, bytearray)):
+                            continue
+                        payload = json.loads(raw)
                         await _persist_detections(payload)
                         # Non-blocking put; drop if queue is full to avoid backpressure
                         try:
