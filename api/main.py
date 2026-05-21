@@ -20,8 +20,16 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [api] %(message)s")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    for attempt in range(1, 11):
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            break
+        except Exception as exc:
+            logging.warning("DB not ready (attempt %d/10): %s", attempt, exc)
+            if attempt == 10:
+                raise
+            await asyncio.sleep(3)
 
     tasks = [
         asyncio.create_task(mqtt_listener()),
