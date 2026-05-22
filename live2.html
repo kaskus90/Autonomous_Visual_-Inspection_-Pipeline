@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Detections</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #fff;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #4dabf7;
+        }
+        .stat-card label {
+            display: block;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #888;
+            margin-bottom: 8px;
+        }
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .detections-container {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .detection-row {
+            background: #252525;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 3px solid #51cf66;
+            font-size: 13px;
+            display: grid;
+            grid-template-columns: 120px 1fr 100px 100px;
+            gap: 15px;
+            align-items: center;
+        }
+        .detection-row.old {
+            border-left-color: #666;
+            opacity: 0.6;
+        }
+        .time {
+            color: #888;
+            font-family: monospace;
+        }
+        .class-badge {
+            display: inline-block;
+            background: #4dabf7;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+        .confidence {
+            font-family: monospace;
+            text-align: right;
+        }
+        .frame-id {
+            color: #888;
+            font-size: 11px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Live Detections</h1>
+
+        <div class="stats">
+            <div class="stat-card">
+                <label>Total Detections</label>
+                <div class="value" id="total">0</div>
+            </div>
+            <div class="stat-card">
+                <label>Last Detection</label>
+                <div class="value" id="last" style="font-size: 16px;">-</div>
+            </div>
+            <div class="stat-card">
+                <label>Top Class</label>
+                <div class="value" id="top-class" style="font-size: 20px;">-</div>
+            </div>
+            <div class="stat-card">
+                <label>Avg Confidence</label>
+                <div class="value" id="avg-conf" style="font-size: 20px;">-</div>
+            </div>
+        </div>
+
+        <div class="detections-container">
+            <h2 style="margin-bottom: 15px; font-size: 18px;">Recent Detections</h2>
+            <div id="detections-list" style="max-height: 500px; overflow-y: auto;">
+                <div style="color: #666; text-align: center; padding: 40px;">Loading detections...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchDetections() {
+            try {
+                const response = await fetch('http://localhost:8000/detections');
+                const data = await response.json();
+
+                if (!data || data.length === 0) {
+                    document.getElementById('detections-list').innerHTML =
+                        '<div style="color: #666; text-align: center; padding: 40px;">No detections yet</div>';
+                    return;
+                }
+
+                // Calculate stats
+                const total = data.length;
+                const last = new Date(data[0].timestamp).toLocaleTimeString();
+
+                const classes = {};
+                let totalConf = 0;
+                data.forEach(d => {
+                    classes[d.class_name] = (classes[d.class_name] || 0) + 1;
+                    totalConf += d.confidence;
+                });
+
+                const topClass = Object.entries(classes).sort((a, b) => b[1] - a[1])[0];
+                const avgConf = (totalConf / data.length).toFixed(2);
+
+                document.getElementById('total').textContent = total;
+                document.getElementById('last').textContent = last;
+                document.getElementById('top-class').textContent = topClass[0];
+                document.getElementById('avg-conf').textContent = avgConf;
+
+                // Display detections
+                const listDiv = document.getElementById('detections-list');
+                listDiv.innerHTML = data.slice(0, 50).map((d, i) => {
+                    const time = new Date(d.timestamp).toLocaleTimeString();
+                    const recentClass = i < 5 ? '' : 'old';
+                    return `
+                        <div class="detection-row ${recentClass}">
+                            <div class="time">${time}</div>
+                            <div>
+                                <span class="class-badge">${d.class_name}</span>
+                                <div class="frame-id">Frame: ${d.frame_id}</div>
+                            </div>
+                            <div class="confidence">${(d.confidence * 100).toFixed(1)}%</div>
+                            <div style="text-align: right; font-size: 11px; color: #888;">#${d.id}</div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('detections-list').innerHTML =
+                    `<div style="color: #ff6b6b; padding: 20px;">Error loading detections: ${error.message}</div>`;
+            }
+        }
+
+        // Load immediately and then every 2 seconds
+        fetchDetections();
+        setInterval(fetchDetections, 2000);
+    </script>
+</body>
+</html>
